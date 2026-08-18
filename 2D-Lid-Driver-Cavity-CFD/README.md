@@ -1,42 +1,28 @@
 # 2D Lid-Driven Cavity CFD Solver
 
+**Author:** Tyler Warner
+
+## Overview
+
+This project implements a two-dimensional incompressible Computational Fluid Dynamics (CFD) solver in C++ for the classic lid-driven cavity problem.
+
+The solver uses finite-difference discretization and a pressure-projection method to solve the incompressible Navier–Stokes equations. OpenMP is used to parallelize computationally intensive grid operations.
+
+The current simulation uses a square cavity with a moving upper lid and operates at a Reynolds number of **Re = 100**.
+
+---
+
 ## Governing Equations
 
-This simulation models two-dimensional, incompressible flow using the Navier–Stokes equations. The solution consists of the horizontal velocity component $u$, vertical velocity component $v$, and pressure $p$.
+The simulation solves the two-dimensional incompressible Navier–Stokes equations for horizontal velocity \(u\), vertical velocity \(v\), and pressure \(p\).
 
-### Conservation of Momentum
+### X-Momentum Equation
 
-The momentum equation in the **x-direction** is
+$$\frac{\partial u}{\partial t} + u\frac{\partial u}{\partial x} + v\frac{\partial u}{\partial y} = -\frac{1}{\rho}\frac{\partial p}{\partial x} + \nu\left(\frac{\partial^2u}{\partial x^2}+\frac{\partial^2u}{\partial y^2}\right)$$
 
-$$
-\frac{\partial u}{\partial t}
-+ u\frac{\partial u}{\partial x}
-+ v\frac{\partial u}{\partial y}
-=
--\frac{1}{\rho}\frac{\partial p}{\partial x}
-+ \nu
-\left(
-\frac{\partial^2 u}{\partial x^2}
-+
-\frac{\partial^2 u}{\partial y^2}
-\right).
-$$
+### Y-Momentum Equation
 
-The momentum equation in the **y-direction** is
-
-$$
-\frac{\partial v}{\partial t}
-+ u\frac{\partial v}{\partial x}
-+ v\frac{\partial v}{\partial y}
-=
--\frac{1}{\rho}\frac{\partial p}{\partial y}
-+ \nu
-\left(
-\frac{\partial^2 v}{\partial x^2}
-+
-\frac{\partial^2 v}{\partial y^2}
-\right).
-$$
+$$\frac{\partial v}{\partial t} + u\frac{\partial v}{\partial x} + v\frac{\partial v}{\partial y} = -\frac{1}{\rho}\frac{\partial p}{\partial y} + \nu\left(\frac{\partial^2v}{\partial x^2}+\frac{\partial^2v}{\partial y^2}\right)$$
 
 The terms in these equations represent:
 
@@ -45,117 +31,87 @@ The terms in these equations represent:
 - **Pressure-gradient term** — acceleration caused by pressure gradients
 - **Viscous terms** — diffusion of momentum due to fluid viscosity
 
-### Conservation of Mass
+### Continuity Equation
 
-Because the fluid is incompressible, the velocity field must satisfy the continuity equation:
+For incompressible flow, conservation of mass requires:
 
-$$
-\frac{\partial u}{\partial x}
-+
-\frac{\partial v}{\partial y}
-= 0.
-$$
+$$\frac{\partial u}{\partial x}+\frac{\partial v}{\partial y}=0$$
 
-Equivalently,
+This requires the velocity field to be divergence-free.
 
-$$
-\nabla \cdot \mathbf{u} = 0,
-$$
+---
 
-meaning the velocity field is divergence-free and conserves mass throughout the cavity.
+## Reynolds Number
 
-### Reynolds Number
+The Reynolds number is defined as:
 
-The flow regime is characterized by the Reynolds number:
+$$Re=\frac{UL}{\nu}$$
 
-$$
-Re = \frac{UL}{\nu},
-$$
+For this simulation:
 
-where $U$ is the lid velocity, $L$ is the cavity length, and $\nu$ is the kinematic viscosity.
+$$Re=\frac{(1.0)(1.0)}{0.01}=100$$
 
-For the current simulation,
+where:
 
-$$
-Re
-=
-\frac{(1.0)(1.0)}{0.01}
-=
-100.
-$$
+- \(U\) = lid velocity
+- \(L\) = cavity length
+- \(\nu\) = kinematic viscosity
 
-### Finite-Difference Discretization
+---
 
-The continuous Navier–Stokes equations are converted into algebraic equations that can be evaluated on the computational grid.
+## Numerical Method
 
-For example, the first derivative of horizontal velocity in the $x$-direction is approximated using a central difference:
+The continuous governing equations are converted into discrete equations using finite-difference approximations on a **101 × 101 computational grid**.
 
-$$
-\left.\frac{\partial u}{\partial x}\right|_{i,j}
-\approx
-\frac{u_{i+1,j}-u_{i-1,j}}{2\Delta x}.
-$$
+For example, a first derivative is approximated using a central difference:
 
-The second derivative is approximated by
+$$\frac{\partial u}{\partial x}\approx\frac{u_{i+1,j}-u_{i-1,j}}{2\Delta x}$$
 
-$$
-\left.\frac{\partial^2 u}{\partial x^2}\right|_{i,j}
-\approx
-\frac{u_{i+1,j}-2u_{i,j}+u_{i-1,j}}{\Delta x^2}.
-$$
+A second derivative is approximated by:
 
-Similar finite-difference expressions are used for the remaining spatial derivatives in the momentum and pressure equations.
+$$\frac{\partial^2u}{\partial x^2}\approx\frac{u_{i+1,j}-2u_{i,j}+u_{i-1,j}}{\Delta x^2}$$
 
-### Pressure Projection
+Similar approximations are used for the remaining derivatives in the momentum and pressure equations.
 
-An intermediate velocity field, $u^*$ and $v^*$, is first calculated from the convection and viscous terms.
+---
 
-Because this intermediate field does not necessarily satisfy continuity, its divergence is used to construct the pressure Poisson equation:
+## Pressure Projection Method
 
-$$
-\nabla^2 p
-=
-\frac{\rho}{\Delta t}
-\left(
-\frac{\partial u^*}{\partial x}
-+
-\frac{\partial v^*}{\partial y}
-\right).
-$$
+The solver first calculates intermediate velocity fields \(u^*\) and \(v^*\) using the convection and viscous terms.
 
-After solving for pressure, the intermediate velocities are corrected using the pressure gradients:
+Because the predicted velocity field does not necessarily satisfy continuity, its divergence is used to construct the pressure Poisson equation:
 
-$$
-u^{n+1}
-=
-u^*
--
-\frac{\Delta t}{\rho}
-\frac{\partial p}{\partial x},
-$$
+$$\nabla^2p=\frac{\rho}{\Delta t}\left(\frac{\partial u^*}{\partial x}+\frac{\partial v^*}{\partial y}\right)$$
 
-$$
-v^{n+1}
-=
-v^*
--
-\frac{\Delta t}{\rho}
-\frac{\partial p}{\partial y}.
-$$
+After solving for pressure, the velocity field is corrected using:
 
-This pressure-correction step drives the velocity field toward satisfying the incompressible continuity equation.
+$$u^{n+1}=u^*-\frac{\Delta t}{\rho}\frac{\partial p}{\partial x}$$
 
-### Variables
+$$v^{n+1}=v^*-\frac{\Delta t}{\rho}\frac{\partial p}{\partial y}$$
 
-| Symbol | Description |
-|:---:|---|
-| $u$ | Velocity in the $x$-direction |
-| $v$ | Velocity in the $y$-direction |
-| $p$ | Pressure |
-| $\rho$ | Fluid density |
-| $\nu$ | Kinematic viscosity |
-| $U$ | Moving-lid velocity |
-| $L$ | Cavity length |
-| $Re$ | Reynolds number |
-| $\Delta t$ | Numerical time step |
-| $\Delta x,\Delta y$ | Grid spacing |
+This process drives the velocity field toward satisfying the incompressible continuity equation.
+
+---
+
+## Boundary Conditions
+
+The upper wall moves in the positive x-direction with a velocity of:
+
+$$U_{\text{lid}}=1.0$$
+
+The remaining walls are stationary and use no-slip boundary conditions:
+
+$$u=v=0$$
+
+The motion of the upper wall transfers momentum to the fluid and produces the characteristic clockwise recirculation within the cavity.
+
+---
+
+## Parallel Computing
+
+OpenMP is used to parallelize several computationally intensive grid operations.
+
+The solver can be compiled with GCC using:
+
+```bash
+g++ -O2 -fopenmp 2D-liddriven-cavityflow.cpp -o cavity
