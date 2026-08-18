@@ -81,7 +81,7 @@ The solver first calculates intermediate velocity fields \(u^*\) and \(v^*\) usi
 
 Because the predicted velocity field does not necessarily satisfy continuity, its divergence is used to construct the pressure Poisson equation:
 
-$$\nabla^2p=\frac{\rho}{\Delta t}\left(\frac{\partial u^*}{\partial x}+\frac{\partial v^*}{\partial y}\right)$$
+$$\nabla^2 p = \frac{\rho}{\Delta t}\left(\frac{\partial u^{*}}{\partial x} + \frac{\partial v^{*}}{\partial y}\right)$$
 
 After solving for pressure, the velocity field is corrected using:
 
